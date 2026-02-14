@@ -20,8 +20,8 @@ PDFCompare is a Node.js application that compares two versions of IFTSTA AHB (An
 |--------|------|----------------|
 | Parser | `src/parser.mjs` | Extracts text with x/y positions from PDFs, groups into rows, detects sections by Prüfidentifikator, handles multi-line cells |
 | Database | `src/database.mjs` | SQLite schema (documents → sections → rows), CRUD operations using sql.js (WASM) |
-| Comparator | `src/comparator.mjs` | Matches sections by Prüfidentifikator, diffs rows by compound key, detects added/removed/modified content |
-| Reporter | `src/reporter.mjs` | Generates a self-contained HTML report with color-coded changes, collapsible sections, and summary statistics |
+| Comparator | `src/comparator.mjs` | Matches sections by Prüfidentifikator, diffs rows by compound key, normalizes PDF text artifacts (whitespace, dashes, hyphens) |
+| Reporter | `src/reporter.mjs` | Generates a self-contained HTML report with color-coded changes, word-level diff highlighting, and collapsible sections |
 | CLI | `src/index.mjs` | Orchestrates the pipeline: parse → store → compare → report |
 
 ## Key Design Decisions

@@ -75,6 +75,33 @@ export function compareDocuments(db, docId1, docId2) {
   return { summary, sectionDiffs };
 }
 
+/**
+ * Normalize text for comparison: strip invisible characters, normalize
+ * whitespace variants and dashes so only human-visible differences remain.
+ */
+function normalizeForComparison(text) {
+  if (!text) return '';
+  let s = text;
+  // Strip zero-width characters and soft hyphens
+  s = s.replace(/[\u200B\u200C\u200D\uFEFF\u2060\u200E\u200F\u00AD]/g, '');
+  // Strip C0/C1 control characters except \n \r \t
+  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
+  // Normalize Unicode whitespace variants to regular space
+  s = s.replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, ' ');
+  // Normalize dash/hyphen variants to standard hyphen
+  s = s.replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-');
+  // Normalize spaces around hyphens between word characters (PDF extraction artifact)
+  // e.g. "EBD - Cluster" → "EBD-Cluster"
+  s = s.replace(/(\w)\s*-\s*(\w)/g, '$1-$2');
+  // Normalize spacing around hyphen-slash compounds (PDF extraction artifact)
+  s = s.replace(/\s*-\s*\/\s*/g, '-/');
+  s = s.replace(/\s*\/\s*-\s*/g, '/-');
+  s = s.replace(/\s*\/\s*/g, '/');
+  // Collapse multiple spaces and trim
+  s = s.replace(/ {2,}/g, ' ').trim();
+  return s;
+}
+
 function buildPruefMap(sections) {
   const map = new Map();
   for (const section of sections) {
@@ -89,24 +116,24 @@ function buildPruefMap(sections) {
 }
 
 function checkMetaChanges(s1, s2) {
-  return s1.title !== s2.title ||
-    s1.kommunikationVon !== s2.kommunikationVon ||
-    s1.statusCol1Header !== s2.statusCol1Header ||
-    s1.statusCol2Header !== s2.statusCol2Header;
+  return normalizeForComparison(s1.title) !== normalizeForComparison(s2.title) ||
+    normalizeForComparison(s1.kommunikationVon) !== normalizeForComparison(s2.kommunikationVon) ||
+    normalizeForComparison(s1.statusCol1Header) !== normalizeForComparison(s2.statusCol1Header) ||
+    normalizeForComparison(s1.statusCol2Header) !== normalizeForComparison(s2.statusCol2Header);
 }
 
 function getMetaChanges(s1, s2) {
   const changes = [];
-  if (s1.title !== s2.title) {
+  if (normalizeForComparison(s1.title) !== normalizeForComparison(s2.title)) {
     changes.push({ field: 'title', old: s1.title, new: s2.title });
   }
-  if (s1.kommunikationVon !== s2.kommunikationVon) {
+  if (normalizeForComparison(s1.kommunikationVon) !== normalizeForComparison(s2.kommunikationVon)) {
     changes.push({ field: 'kommunikationVon', old: s1.kommunikationVon, new: s2.kommunikationVon });
   }
-  if (s1.statusCol1Header !== s2.statusCol1Header) {
+  if (normalizeForComparison(s1.statusCol1Header) !== normalizeForComparison(s2.statusCol1Header)) {
     changes.push({ field: 'statusCol1Header', old: s1.statusCol1Header, new: s2.statusCol1Header });
   }
-  if (s1.statusCol2Header !== s2.statusCol2Header) {
+  if (normalizeForComparison(s1.statusCol2Header) !== normalizeForComparison(s2.statusCol2Header)) {
     changes.push({ field: 'statusCol2Header', old: s1.statusCol2Header, new: s2.statusCol2Header });
   }
   return changes;
@@ -178,17 +205,21 @@ function buildRowMap(rows) {
 
 function rowKey(row) {
   if (row.isLabel) {
-    return `LABEL:${row.beschreibung}`;
+    return `LABEL:${normalizeForComparison(row.beschreibung)}`;
   }
   // Primary key: segmentGroup + segmentCode + dataElement
   // Include beschreibung snippet for disambiguation when data_element is empty
-  const parts = [row.segmentGroup, row.segmentCode, row.dataElement].filter(Boolean);
+  const sg = normalizeForComparison(row.segmentGroup);
+  const sc = normalizeForComparison(row.segmentCode);
+  const de = normalizeForComparison(row.dataElement);
+  const parts = [sg, sc, de].filter(Boolean);
   if (parts.length === 0) {
     return `POS:${row.rowOrder}`;
   }
   // Add code value from beschreibung (first word if it looks like a code)
-  const firstWord = row.beschreibung.split(/\s+/)[0] || '';
-  if (/^[A-Z0-9_]{1,10}$/.test(firstWord) && row.dataElement) {
+  const beschr = normalizeForComparison(row.beschreibung);
+  const firstWord = beschr.split(/\s+/)[0] || '';
+  if (/^[A-Z0-9_]{1,10}$/.test(firstWord) && de) {
     parts.push(firstWord);
   }
   return parts.join('|');
@@ -201,16 +232,16 @@ function diffRowFields(r1, r2) {
   for (const field of fields) {
     const v1 = (r1[field] || '').trim();
     const v2 = (r2[field] || '').trim();
-    if (v1 !== v2) {
+    if (normalizeForComparison(v1) !== normalizeForComparison(v2)) {
       changes.push({ field, old: v1, new: v2 });
     }
   }
 
   // Also check structural changes
-  if (r1.segmentGroup !== r2.segmentGroup) {
+  if (normalizeForComparison(r1.segmentGroup) !== normalizeForComparison(r2.segmentGroup)) {
     changes.push({ field: 'segmentGroup', old: r1.segmentGroup, new: r2.segmentGroup });
   }
-  if (r1.segmentCode !== r2.segmentCode) {
+  if (normalizeForComparison(r1.segmentCode) !== normalizeForComparison(r2.segmentCode)) {
     changes.push({ field: 'segmentCode', old: r1.segmentCode, new: r2.segmentCode });
   }
 

@@ -14,6 +14,8 @@ export function generateHTMLReport(comparison, doc1, doc2, stats1, stats2, outpu
   fs.writeFileSync(outputPath, html, 'utf8');
 }
 
+export { buildHTML };
+
 function esc(text) {
   return String(text || '')
     .replace(/&/g, '&amp;')
@@ -279,14 +281,61 @@ function renderRemovedRow(r) {
   </tr>`;
 }
 
+function diffWords(oldText, newText) {
+  const oldWords = (oldText || '').split(/\s+/).filter(Boolean);
+  const newWords = (newText || '').split(/\s+/).filter(Boolean);
+
+  const m = oldWords.length;
+  const n = newWords.length;
+
+  // LCS dynamic programming
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (oldWords[i - 1] === newWords[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+
+  // Trace back to find LCS indices
+  const oldInLCS = new Set();
+  const newInLCS = new Set();
+  let i = m, j = n;
+  while (i > 0 && j > 0) {
+    if (oldWords[i - 1] === newWords[j - 1]) {
+      oldInLCS.add(i - 1);
+      newInLCS.add(j - 1);
+      i--; j--;
+    } else if (dp[i - 1][j] > dp[i][j - 1]) {
+      i--;
+    } else {
+      j--;
+    }
+  }
+
+  const oldHtml = oldWords.map((w, idx) =>
+    oldInLCS.has(idx) ? esc(w) : `<b>${esc(w)}</b>`
+  ).join(' ');
+
+  const newHtml = newWords.map((w, idx) =>
+    newInLCS.has(idx) ? esc(w) : `<b>${esc(w)}</b>`
+  ).join(' ');
+
+  return { oldHtml, newHtml };
+}
+
 function renderModifiedRow(rd) {
   const changedFields = new Set(rd.changes.map(c => c.field));
 
   function cell(field, oldVal, newVal) {
     if (changedFields.has(field)) {
+      const { oldHtml, newHtml } = diffWords(oldVal, newVal);
       return `<td class="cell-changed">
-        <div class="old-val">${esc(oldVal)}</div>
-        <div class="new-val">${esc(newVal)}</div>
+        <div class="old-val">${oldHtml}</div>
+        <div class="new-val">${newHtml}</div>
       </td>`;
     }
     return `<td>${esc(newVal)}</td>`;
@@ -488,13 +537,20 @@ const CSS = `
     position: relative;
   }
   .cell-changed .old-val {
-    text-decoration: line-through;
     color: var(--red);
     font-size: 11px;
   }
+  .cell-changed .old-val b {
+    font-weight: 700;
+    background: rgba(255, 0, 0, 0.1);
+    text-decoration: line-through;
+  }
   .cell-changed .new-val {
     color: var(--green);
-    font-weight: 500;
+  }
+  .cell-changed .new-val b {
+    font-weight: 700;
+    background: rgba(0, 180, 0, 0.1);
   }
 
   footer {

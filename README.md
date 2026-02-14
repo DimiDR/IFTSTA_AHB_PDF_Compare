@@ -6,14 +6,28 @@ Built for the German energy market's EDIFACT message specifications published by
 
 ## Features
 
+- **Web UI** — drag-and-drop upload page with side-by-side PDF panels; supports file uploads and URLs
 - **No OCR needed** — extracts embedded text directly via `pdfjs-dist` with x/y positioning
 - **SQLite persistence** — parsed data stored in a queryable `.sqlite` file
 - **HTML diff report** — self-contained, color-coded report with collapsible sections
 - **Section matching** — matches Anwendungsfaelle across versions by Pruefidentifikator
 - **Row-level diffing** — compares individual table rows by compound key (segment group + code + data element)
+- **Word-level highlighting** — modified fields bold only the specific words that changed, not the entire value
+- **PDF artifact normalization** — handles inconsistent whitespace, dash variants, and spacing around hyphens
 - **Zero native dependencies** — uses `sql.js` (WASM), no C++ build tools or Python required
 
 ## Quick Start
+
+### Web UI
+
+```bash
+npm install
+npm start
+```
+
+Open `http://localhost:3000` in your browser. Drag and drop two PDFs (or paste URLs) and click **Compare**. The report opens in a new window.
+
+### CLI
 
 ```bash
 # Install
@@ -50,7 +64,8 @@ node src/index.mjs <old.pdf> <new.pdf> [options]
 ### npm Scripts
 
 ```bash
-npm run compare:test          # Compare included test PDFs
+npm start                     # Launch web UI on http://localhost:3000
+npm run compare:test          # Compare included test PDFs via CLI
 npm run compare -- a.pdf b.pdf --output result.html
 ```
 
@@ -75,13 +90,18 @@ The HTML report includes:
 - **Row-level diff tables** with field-level old/new value comparison
   - Green (`+`) = added rows
   - Red (`-`) = removed rows
-  - Yellow (`~`) = modified rows with inline old/new values
+  - Yellow (`~`) = modified rows with word-level bold highlighting on changed words
   - Gray = unchanged rows
 
 ## Architecture
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+                       ┌──────────────┐
+                       │  Web Server  │  ← npm start (upload / URL)
+                       │  server.mjs  │
+                       └──────┬───────┘
+                              │
+┌──────────────┐     ┌────────┴─────┐     ┌──────────────┐     ┌──────────────┐
 │  PDF Parser  │────>│   Database   │────>│  Comparator  │────>│   Reporter   │
 │  parser.mjs  │     │ database.mjs │     │comparator.mjs│     │ reporter.mjs │
 └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
@@ -97,6 +117,7 @@ The HTML report includes:
 | Comparator | `src/comparator.mjs` | Matches sections by Pruefidentifikator, diffs rows by compound key |
 | Reporter | `src/reporter.mjs` | Generates self-contained HTML with color-coded diffs |
 | CLI | `src/index.mjs` | Orchestrates the full pipeline |
+| Web Server | `src/server.mjs` | Express server with drag-and-drop upload UI |
 
 ### How Parsing Works
 
@@ -150,6 +171,7 @@ See [docs/database.md](docs/database.md) for full schema and more query examples
 | Runtime | Node.js v18+ (ESM) |
 | PDF extraction | [pdfjs-dist](https://www.npmjs.com/package/pdfjs-dist) |
 | Database | [sql.js](https://www.npmjs.com/package/sql.js) (SQLite via WASM) |
+| Web server | [express](https://www.npmjs.com/package/express) + [multer](https://www.npmjs.com/package/multer) |
 | Report | Self-contained HTML/CSS/JS |
 
 ## License

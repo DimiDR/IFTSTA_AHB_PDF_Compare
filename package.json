@@ -4,12 +4,20 @@
   "description": "Compare IFTSTA AHB PDF versions by extracting table data into SQLite and diffing",
   "type": "module",
   "scripts": {
+    "start": "node src/server.mjs",
     "compare": "node src/index.mjs",
     "compare:test": "node src/index.mjs Test/IFTSTA_AHB_2_0h_20250401.pdf Test/IFTSTA_AHB_2_1_Konsultationsfassung_20260202.pdf --verbose"
   },
-  "keywords": ["pdf", "compare", "edifact", "iftsta"],
+  "keywords": [
+    "pdf",
+    "compare",
+    "edifact",
+    "iftsta"
+  ],
   "license": "ISC",
   "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
     "pdfjs-dist": "^5.4.624",
     "sql.js": "^1.14.0"
   }

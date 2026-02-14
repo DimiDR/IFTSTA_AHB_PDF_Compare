@@ -91,7 +91,7 @@ A self-contained HTML file (no external dependencies) with:
 - **Row diff tables**: Per-section tables showing every row with:
   - `+` green rows = added in new version
   - `-` red rows = removed from old version
-  - `~` yellow rows = modified (changed fields show old → new values)
+  - `~` yellow rows = modified (changed fields show old → new values with **word-level highlighting** — only the specific words that differ are bolded)
   - Gray rows = unchanged
 
 Open the file in any browser. Click section headers to expand/collapse.

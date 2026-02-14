@@ -63,7 +63,13 @@ function round1(n) {
 }
 
 function normalizeWhitespace(text) {
-  return text.replace(/\s+/g, ' ').trim();
+  let s = text;
+  // Strip zero-width characters and soft hyphens
+  s = s.replace(/[\u200B\u200C\u200D\uFEFF\u2060\u200E\u200F\u00AD]/g, '');
+  // Normalize Unicode whitespace variants to regular space
+  s = s.replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, ' ');
+  // Collapse whitespace and trim
+  return s.replace(/\s+/g, ' ').trim();
 }
 
 function detectVersion(allPages) {

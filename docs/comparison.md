@@ -106,6 +106,31 @@ Section diffs are sorted by relevance:
 3. Removed
 4. Unchanged
 
+## Text Normalization
+
+Before comparison, all text values are normalized to eliminate PDF extraction artifacts:
+
+- **Zero-width characters** and soft hyphens are stripped
+- **Unicode whitespace** variants (non-breaking space, em space, etc.) are collapsed to regular spaces
+- **Dash/hyphen variants** (en-dash, em-dash, minus sign, etc.) are normalized to standard hyphen
+- **Spaces around hyphens** between word characters are removed (e.g., `EBD - Cluster` → `EBD-Cluster`) to handle inconsistent PDF text extraction
+- **Hyphen-slash compounds** are normalized (`- /` → `-/`, ` / ` → `/`)
+- **Multiple spaces** are collapsed and text is trimmed
+
+This normalization is applied during both row matching (key generation) and field-level change detection, so cosmetic PDF extraction differences do not produce false positives.
+
+## Word-Level Diff Highlighting
+
+When a field has changed between versions, the report highlights only the specific words that differ — not the entire field value. This uses a **longest common subsequence (LCS)** algorithm on word tokens:
+
+1. Old and new text are split into words
+2. LCS identifies the common words shared between both versions
+3. Words not in the LCS are wrapped in `<b>` tags in the HTML output
+4. Old values show changed words in **bold red with strikethrough**
+5. New values show changed words in **bold green with highlight**
+
+This makes it easy to spot the actual change within long text fields like Beschreibung or Bedingung.
+
 ## Edge Cases
 
 - **Sections with overlapping Prüfidentifikatoren**: If V2.0h has `21025,21026 21027` but V2.1 has `21025,21027` (removed 21026), these are treated as different sections (one removed, one added) since the full key differs.
